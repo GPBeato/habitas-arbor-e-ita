@@ -1,0 +1,7 @@
+.idea/
+.venv/
+venv/
+env/
+habitasenv/
+node_modules/
+**/__pycache__/

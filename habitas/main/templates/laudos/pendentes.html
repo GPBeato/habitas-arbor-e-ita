@@ -1,0 +1,81 @@
+{% extends '_base.html' %}
+
+{% block title %}Laudos Pendentes - Habitas{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+  <div class="mb-6">
+    <a href="{% url 'dashboard_gestor' %}" class="text-emerald-600 hover:text-emerald-700 font-medium">
+      ← Voltar ao Dashboard
+    </a>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-lg p-6">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Laudos Pendentes de Aprovação</h1>
+    <p class="text-gray-600 mb-6">Revise e aprove ou rejeite os laudos técnicos submetidos</p>
+
+    {% if laudos %}
+      <div class="space-y-4">
+        {% for laudo in laudos %}
+          <div class="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+            <div class="flex justify-between items-start mb-3">
+              <div class="flex-1">
+                <h2 class="text-xl font-semibold text-gray-900 mb-1">{{ laudo.titulo }}</h2>
+                <p class="text-sm text-gray-600">
+                  Árvore: <strong>{{ laudo.tree.nome_popular }}</strong> ({{ laudo.tree.nome_cientifico }}) - 
+                  Placa #{{ laudo.tree.N_placa|floatformat:0 }}
+                </p>
+              </div>
+              <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+                {{ laudo.get_status_display }}
+              </span>
+            </div>
+
+            <div class="mb-3 p-3 bg-gray-50 rounded">
+              <p class="text-sm text-gray-700 line-clamp-3">{{ laudo.descricao }}</p>
+            </div>
+
+            <div class="flex items-center justify-between text-sm text-gray-600 mb-3">
+              <div class="flex items-center gap-4">
+                <span>
+                  <strong>Autor:</strong> {{ laudo.autor.username }}
+                  <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded ml-1">
+                    {{ laudo.autor.get_user_type_display }}
+                  </span>
+                </span>
+                <span><strong>Criado em:</strong> {{ laudo.data_criacao|date:"d/m/Y H:i" }}</span>
+              </div>
+              {% if laudo.arquivo %}
+                <a href="{{ laudo.arquivo.url }}" target="_blank" 
+                   class="text-emerald-600 hover:text-emerald-700 font-medium">
+                  📄 Ver PDF
+                </a>
+              {% endif %}
+            </div>
+
+            <div class="flex gap-3">
+              <a href="{% url 'validar_laudo' laudo.id %}" 
+                 class="flex-1 text-center bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 font-medium transition-colors">
+                Revisar e Validar
+              </a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- Paginação (se necessário) -->
+      <div class="mt-6 text-center text-sm text-gray-600">
+        Total: {{ laudos|length }} laudo{{ laudos|length|pluralize }}
+      </div>
+    {% else %}
+      <div class="text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">Nenhum laudo pendente</h3>
+        <p class="mt-1 text-sm text-gray-500">Todos os laudos foram revisados!</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

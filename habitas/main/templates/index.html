@@ -1,0 +1,402 @@
+{% extends '_base.html' %} {% load unicorn %}{% load static %} {% block header %}
+
+<link rel="stylesheet" href="{% static 'css/index.css' %}" />
+
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.2/dist/leaflet.css"
+  integrity="sha256-sA+zWATbFveLLNqWO2gtiw3HL/lh1giY/Inf1BJ0z14="
+  crossorigin=""
+/>
+<script
+  src="https://unpkg.com/leaflet@1.9.2/dist/leaflet.js"
+  integrity="sha256-o9N1jGDZrf5tS+Ft4gbIK7mYMipq9lqpVJ91xHSyKhg="
+  crossorigin=""
+></script>
+<script type="text/javascript" src="{% static 'js/city.js' %}"></script>
+<script type="text/javascript" src="{% static 'js/bairros.js' %}"></script>
+
+<script src='https://unpkg.com/@turf/turf@6/turf.min.js'
+crossorigin=""></script>
+
+
+{% endblock %} {% block title %} Habitas {% endblock %} {% block content %}
+
+<div class="grid grid-cols-4 my-4 scrollbar-thin scrollbar scrollbar-thumb-gray-300" style="overflow-y: auto;max-height: 100vh;">
+  <div
+    class="col-span-1 mx-2 px-6 items-center scrollbar-thin scrollbar scrollbar-thumb-gray-300 scrollbar-track-gray-100 bg-clip-content border h-[calc(93vh-90px)]"
+    style="overflow-y: auto;max-height: 100vh;">
+    <h1 class="text-3xl text-left font-bold my-2 w-fit">
+      Árvores de SJC
+      <hr class="bg-emerald-600 h-2.5 w-full my-2" />
+    </h1>
+    <p class="text-left text-xl font-medium my-2">
+      Aprenda sobre as árvores de sua vizinhança.
+    </p>
+    <p class="text-left font-light">
+      Pela primeira vez, você tem acesso a informações sobre as árvores 
+      de São José dos Campos. Aprenda sobre as árvores que compõem a floresta urbana da nossa cidade.
+    </p>
+    <h1 class="text-2xl text-left font-medium my-4 w-fit">
+      Estatísticas gerais
+      <hr class="bg-emerald-900 h-1.5 w-full" />
+    </h1>
+
+    <div class="grid grid-cols-3" id="estatisticas-gerais">
+    </div>
+
+    <h1 class="text-2xl text-left font-medium my-4 w-fit">
+      Benefícios ecológicos
+      <hr class="bg-emerald-900 h-1.5 w-full" />
+    </h1>
+
+    <div id="estatisticas-ecologicas">
+    </div>
+
+
+    <div id="estatisticas" style="display:none;">
+      <h1 class="text-2xl text-left font-medium my-4 w-fit">
+        Informações sobre a árvore
+        <hr class="bg-emerald-900 h-1.5 w-full" />
+      </h1>
+      <h1 class="text-2xl text-left font-medium my-4 w-fit" id="nome_popular">
+        <hr class="bg-emerald-900 h-1.5 w-full"/>
+      </h1>
+     <p class="text-left " id="dados">
+      </p>
+      <div id="acoes-container"></div> 
+      </p>
+      <h2 class="text-2xl text-left font-medium my-4 w-fit">
+        Comentários
+        <hr class="bg-emerald-900 h-1.5 w-full" />
+      </h2>
+      {% unicorn 'posts' %}
+    </div>
+
+    <div class="info-container">
+      <div class="info-header">Fontes</div>
+      <div>CO<sub>2</sub> retido: Schumacher e Hall (1933)</div>
+      <div>Chuva interceptada: Gash (1979)</div>
+      <div>Energia conservada: Yekang Ko (2018)</div>
+      <div>Índice de biodiversidade: Estimativa própria</div>
+    </div>
+  </div>
+  <div class="z-0 col-span-3 pr-2 h-screen">
+    <div id="map" class="z-0 min-w-max"></div>
+    <div class="flex w-full h-max flex-row-reverse items-center my-4">
+      <span class="text-emerald-600 font-serif flex flex-row">
+        <img style="height: 28px;" src="{% static 'image/habitas.png' %}"><sup class="text-sm">®</sup>
+        <span class="underline"></span>
+      </span>
+    </div>
+  </div>
+</div>
+
+<script>
+  function renderStatistics(circles) {
+    const species = new Set(circles.map(a => a.tree_species)).size;
+    const total_n_posts = circles.map(a => a.n_posts).reduce((a,b)=>a+b, 0);
+    const stored_co2 = circles.map(a => a.stored_co2).reduce((a,b)=>a+b, 0);
+    const stored_co2_price = stored_co2 * 365;
+    const stormwater = circles.map(a => a.stormwater_intercepted).reduce((a,b)=>a+b, 0);
+    const stormwater_price = stormwater * 0.015;
+    const energy = circles.map(a => a.conserved_energy).reduce((a,b)=>a+b, 0);
+    const energy_price = energy * 0.82;
+    const biodiversity = circles.map(a => a.biodiversity).reduce((a,b)=>a+b, 0);
+
+    document.getElementById("estatisticas-gerais").innerHTML = `
+      <div class="my-2">
+        <span class="font-bold text-xl">${circles.length}</span>
+        <br>
+        <span class="text-lg">Árvores Cadastradas</span>
+      </div>
+      <div class="my-2">
+        <span class="font-bold text-xl">${species}</span>
+        <br>
+        <span class="text-lg">Espécies</span>
+      </div>
+      <div class="my-2">
+        <span class="font-bold text-xl">${total_n_posts}</span>
+        <br>
+        <span class="text-lg">Comentários</span>
+      </div>
+    `;
+
+    document.getElementById("estatisticas-ecologicas").innerHTML = `
+      <div class="my-2">
+        <div class="font-bold text-xl">Toneladas de CO<sub>2</sub> retido</div>
+        <div style="display: grid; grid-auto-flow: column;">
+          <span class="text-lg">${stored_co2.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span style="color: rgb(5 150 105)">ton.</span></span>
+            <span class="text-lg"><span style="color: rgb(5 150 105)">Valor: </span>${stored_co2_price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} R$</span>
+        </div>
+      </div>
+      <div class="my-2">
+        <div class="font-bold text-xl">Água de chuva interceptada por ano</div>
+        <div style="display: grid; grid-auto-flow: column;">
+          <span class="text-lg">${stormwater.toLocaleString(undefined, {maximumFractionDigits: 0})} <span style="color: rgb(5 150 105)">L</span></span>
+            <span class="text-lg"><span style="color: rgb(5 150 105)">Valor: </span>${stormwater_price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} R$</span>
+        </div>
+      </div>
+      <div class="my-2">
+        <div class="font-bold text-xl">Energia conservada por ano</div>
+        <div style="display: grid; grid-auto-flow: column;">
+          <span class="text-lg">${energy.toLocaleString(undefined, {maximumFractionDigits: 0})} <span style="color: rgb(5 150 105)">kWh</span></span>
+            <span class="text-lg"><span style="color: rgb(5 150 105)">Valor: </span>${energy_price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} R$</span>
+        </div>
+      </div>
+      <div class="my-2">
+        <div class="font-bold text-xl">Índice de biodiversidade</div>
+        <div style="display: grid; grid-auto-flow: column;">
+          <span class="text-lg">${biodiversity.toLocaleString(undefined, {maximumFractionDigits: 0})} <span style="color: rgb(5 150 105)">un.</span></span>
+        </div>
+      </div>
+    `;
+  }
+
+  function create_google_maps_url(lat, long){
+    return `http://maps.google.com/maps?z=12&t=m&q=loc:${lat}+${long}`
+  }
+  // load trees from context to list
+
+  var map = L.map("map").setView([-23.205459913570404, -45.88184219354045], 15);
+
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution:
+      '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(map);
+
+  function filterPointsInPolygon(polygon, circles) {
+      // Check if both polygon and points are defined
+
+      try {
+          // Check if Turf.js is available and has the necessary functions
+          if (typeof turf !== 'undefined' && turf.booleanPointInPolygon) {
+              // Log the inputs for debugging
+
+              // Filter points within the clicked neighborhood
+              return circles.filter(circle => {
+                  // Log the point for debugging
+                  //console.log("Point:", point);
+
+                  point = circle.toGeoJSON()
+
+                  try {
+                      // Check if the point has valid geometry and properties
+                      const coordinates = point.geometry && point.geometry.coordinates;
+                      //console.log("ok", coordinates, polygon.geometry.coordinates)
+
+                      if (coordinates && Array.isArray(coordinates) && coordinates.length === 2) {
+
+                          // Check if the coordinates are valid before invoking Turf.js
+                          return turf.booleanPointInPolygon(turf.point(coordinates), turf.polygon(polygon.geometry.coordinates));
+                      } else {
+                          console.error("Invalid point:", point);
+                          return false;
+                      }
+                  } catch (error) {
+                      console.error("Error in filtering points:", error);
+                      return false;
+                  }
+              });
+          } else {
+              console.error("Turf.js or its functions are not available.");
+              return [];
+          }
+      } catch (error) {
+          console.error("Error in filtering points:", error);
+          return [];
+      }
+  }
+
+  L.geoJSON(CITY_LIMIT, {fillOpacity: 0.0}).addTo(map);
+  // Assume BAIRROS is a GeoJSON layer representing neighborhoods
+
+  const neighborhoodsLayer = L.geoJSON(
+    BAIRROS, {color: 'transparent'}
+  ).addTo(map);
+
+  let clickedLayerId = null;
+
+  // Define a function to handle the click event on neighborhoods
+  function highlightNeighborhood(e) {
+    const clickedLayer = e.target;
+
+    neighborhoodsLayer.getLayers().forEach((layer) => layer.unbindTooltip());
+    circleLayerGroup.clearLayers();
+
+    if (clickedLayer.feature.id === clickedLayerId) {
+      clickedLayer.setStyle({weight: 0,
+        color: 'transparent',
+        dashArray: '',
+        fillOpacity: 0.0});
+    } else {
+      clickedLayer.bindTooltip(clickedLayer.feature.properties.bairro,  {permanent: true, direction: 'center', opacity: 0.5}).addTo(map);
+      
+      neighborhoodsLayer.resetStyle();
+      clickedLayer.setStyle({
+        weight: 5,
+        color: '#666',
+        dashArray: '',
+        fillOpacity: 0.4
+      });
+        
+      const clickedNeighborhood = clickedLayer.toGeoJSON();
+      const filteredCircles = filterPointsInPolygon(clickedNeighborhood, originalCircles);
+  
+      filteredCircles.forEach(circle => {
+          circleLayerGroup.addLayer(circle)
+      });
+  
+      circleLayerGroup.addTo(map);
+  
+      clickedLayerId = clickedLayer.feature.id;
+  
+      renderStatistics(filteredCircles);
+    }
+  }
+
+  neighborhoodsLayer.eachLayer(layer => {
+      layer.on('click', highlightNeighborhood);
+  });
+
+  function onMapClick(index) {
+    tree = tree_map.get(index);
+    Unicorn.call("posts", "update", tree.id);
+    let img_links = [];
+    for (let i = 0; i < tree.imagens.length; i++) {
+      img_links.push(`<img src="https://arvores.sjc.sp.gov.br${tree.imagens[i]}">`);
+    }
+    let laudos = [];
+    for (let i = 0; i < tree.laudos.length; i++) {
+      laudos.push(`<a href="https://arvores.sjc.sp.gov.br${tree.laudos[i]}" class="underline text-blue-500">Laudo ${i + 1}</a>`);
+    }
+    google_maps_url = create_google_maps_url(tree.latitude, tree.longitude);
+
+    // Criar botões de ação baseado no tipo de usuário
+    let acoesBotoes = '';
+    {% if user.is_authenticated %}
+      acoesBotoes = '<div class="mt-4 flex flex-col space-y-2">'; // Usar flex-col para empilhar
+      
+      {% if user.is_tecnico or user.is_gestor %}
+      acoesBotoes += `
+          <a href="/laudos/criar/${tree.id}/" class="inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 font-medium transition-colors shadow-md">
+              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <span class="whitespace-nowrap">Criar Laudo Técnico</span>
+          </a>
+      `;
+      {% endif %}
+      
+      acoesBotoes += `
+          <a href="/notificacoes/criar/${tree.id}/" class="inline-flex items-center justify-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 font-medium transition-colors shadow-md">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+            </svg>
+            <span class="whitespace-nowrap">Criar Notificação</span>
+          </a>
+      `;
+      
+      acoesBotoes += '</div>';
+    {% endif %}
+
+    document.getElementById("estatisticas").style.display = "block";
+    
+    // ATUALIZAÇÃO 1: Preenche o <p> APENAS com o texto
+    document.getElementById("dados").innerHTML = `
+      <p>Id. da árvore: ${tree.numero}</p>
+      <p>Nome científico: ${tree.nome_cientifico}</p>
+      <p>Diâmetro: ${tree.dap} cm</p>
+      <p>Altura: ${tree.altura} m</p>
+      <p>Google maps: <a href="${google_maps_url}" class="underline text-blue-500">link</a></p>
+      <p>CO<sub>2</sub> retido: ${ Math.round(1000 * tree.co2) } kg</p>
+      <p>Água de chuva interceptada: ${ Math.round(tree.stormwater) } L</p>
+      <p>Energia conservada: ${ Math.round(tree.conserved_energy) } kWh</p>
+      <p>Índice de biodiversidade: ${ Math.round(tree.biodiversity) } un</p>
+      <p>Plantado por: ${tree.plantado_por } </p>
+      ${laudos.length > 0 ? `<p>Laudos: ${laudos.join(', ')} </p>` : ""}
+      ${img_links.length > 0 ? `<p style="font-weight: bold;">Imagens</p> ${img_links.join('')}` : ""}
+    `; // Note que ${acoesBotoes} foi removido daqui
+
+    // ATUALIZAÇÃO 2: Preenche o novo <div> APENAS com os botões
+    document.getElementById("acoes-container").innerHTML = acoesBotoes;
+
+    document.getElementById("nome_popular").innerHTML = `${tree.nome_popular}`;
+  }
+
+  tree_map = new Map();
+
+  {% for tree in trees %}
+    tree_obj = {
+      id: {{ tree.id }},
+      nome_popular: "{{ tree.nome_popular }}".trim(),
+      nome_cientifico: "{{ tree.nome_cientifico }}".trim(),
+      dap: "{{ tree.dap }}",
+      altura: "{{ tree.altura }}",
+      data_da_coleta: "{{ tree.data_da_coleta }}",
+      latitude: "{{ tree.latitude }}",
+      longitude: "{{ tree.longitude }}",
+      numero: {{ tree.N_placa }},
+      n_comentarios: {{ tree.n_posts }},
+      co2: {{ tree.stored_co2 }},
+      stormwater: {{ tree.stormwater_intercepted }},
+      conserved_energy: {{ tree.conserved_energy }},
+      biodiversity: {{ tree.biodiversity }},
+      color: {{ tree.n_posts }} > 0 ? "yellow" : "green",
+      plantado_por: "{{ tree.plantado_por }}",
+      imagens: "{{ tree.imagem }}".split(',').map(path => path.trim()).filter(val => val !== ""),
+      laudos: "{{ tree.laudo }}".split(',').map(path => path.trim()).filter(val => val !== ""),
+    };
+
+    tree_map.set(tree_obj.id, tree_obj)
+  {% endfor %}
+
+
+  // circle_map = new Map();
+  let lastClickedCircle;
+  const circleLayerGroup = L.layerGroup();
+  const originalCircles = []
+
+  for (let [tree_id, tree] of tree_map) {
+    circle = L.circle(
+      [tree.latitude, tree.longitude],
+      {
+        color: tree.color,
+        fillColor: tree.color,
+        fillOpacity: 0.5,
+        radius: 5,
+        selected: false,
+      }
+    )
+    circle.tree_id = tree_id;
+    circle.tree_species = tree.nome_cientifico;
+    circle.n_posts = tree.n_comentarios;
+    circle.stored_co2 = tree.co2;
+    circle.stormwater_intercepted = tree.stormwater;
+    circle.conserved_energy = tree.conserved_energy;
+    circle.biodiversity = tree.biodiversity;
+
+    circle.on("click", function(){
+      if (lastClickedCircle){
+        lastClickedCircle.setStyle({
+          color: tree_map.get(lastClickedCircle.tree_id).color,
+          fillColor: tree_map.get(lastClickedCircle.tree_id).color
+        });
+      }
+
+      onMapClick(tree_id);
+      lastClickedCircle = this;
+      this.setStyle({color: 'red', fillColor: '#f00'});
+    })
+
+    originalCircles.push(circle)
+  }
+
+  // originalCircles.forEach(circle => circleLayerGroup.addLayer(circle));
+  // circleLayerGroup.addTo(map);
+
+  renderStatistics(originalCircles);
+</script>
+
+{% endblock %}

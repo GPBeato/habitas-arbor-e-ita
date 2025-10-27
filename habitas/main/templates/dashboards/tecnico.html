@@ -1,0 +1,42 @@
+{% extends '_base.html' %}
+
+{% block title %}Dashboard Técnico{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 overflow-y-auto" style="max-height: calc(100vh - 120px);">
+  <h1 class="text-3xl font-bold mb-8 text-gray-800">Dashboard - Técnico (Nível 2)</h1>
+  
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-lg shadow p-6">
+      <h3 class="text-gray-500 text-sm font-medium">Meus Laudos</h3>
+      <p class="text-3xl font-bold text-blue-600 mt-2">{{ meus_laudos }}</p>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+      <h3 class="text-gray-500 text-sm font-medium">Notificações Disponíveis</h3>
+      <p class="text-3xl font-bold text-yellow-600 mt-2">{{ notificacoes_disponiveis }}</p>
+      <a href="{% url 'listar_notificacoes' %}" class="text-sm text-blue-600 hover:underline mt-2 inline-block">Ver notificações</a>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+      <h3 class="text-gray-500 text-sm font-medium">Minhas Análises</h3>
+      <p class="text-3xl font-bold text-emerald-600 mt-2">{{ minhas_analises }}</p>
+    </div>
+  </div>
+  
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-xl font-bold mb-4 text-gray-800">Ações</h2>
+    <div class="space-y-3">
+      <a href="{% url 'index' %}" class="block bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 text-center font-medium">
+        🌳 Ver Mapa de Árvores (Criar Laudo)
+      </a>
+      <a href="{% url 'meus_laudos' %}" class="block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 text-center font-medium">
+        📄 Gerenciar Meus Laudos
+      </a>
+      <a href="{% url 'listar_notificacoes' %}" class="block bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 text-center font-medium">
+        📋 Analisar Notificações
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

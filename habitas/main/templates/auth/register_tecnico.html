@@ -1,0 +1,69 @@
+{% extends '_base.html' %}
+
+{% block title %}Cadastro de Técnico - Habitas{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
+  <div class="max-w-2xl w-full space-y-8">
+    <div>
+      <h2 class="text-center text-3xl font-bold text-gray-900">
+        Cadastro de Técnico Voluntário
+      </h2>
+      <p class="mt-2 text-center text-sm text-gray-600">
+        Solicite acesso técnico enviando suas credenciais para análise
+      </p>
+    </div>
+    
+    <form method="POST" enctype="multipart/form-data" class="mt-8 space-y-6 bg-white p-8 rounded-lg shadow">
+      {% csrf_token %}
+      
+      <div class="grid grid-cols-1 gap-6">
+        {% for field in form %}
+          <div>
+            <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+              {{ field.label }}
+            </label>
+            
+            {% if field.name == 'documento_comprobatorio' %}
+              <input type="file" 
+                     name="{{ field.name }}" 
+                     id="{{ field.id_for_label }}"
+                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-emerald-500 focus:border-emerald-500"
+                     accept=".pdf,.jpg,.jpeg,.png"
+                     {% if field.field.required %}required{% endif %}>
+            {% else %}
+              <input type="{{ field.field.widget.input_type }}" 
+                     name="{{ field.name }}" 
+                     id="{{ field.id_for_label }}"
+                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-emerald-500 focus:border-emerald-500"
+                     {% if field.field.required %}required{% endif %}>
+            {% endif %}
+            
+            {% if field.errors %}
+              <p class="mt-1 text-sm text-red-600">{{ field.errors.0 }}</p>
+            {% endif %}
+            {% if field.help_text %}
+              <p class="mt-1 text-xs text-gray-500">{{ field.help_text }}</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      
+      <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+        <p class="text-sm text-yellow-700">
+          <strong>Atenção:</strong> Sua solicitação será analisada por um gestor do sistema. 
+          Você receberá acesso às funcionalidades técnicas após aprovação.
+        </p>
+      </div>
+      
+      <button type="submit" class="w-full bg-emerald-600 text-white py-3 px-4 rounded-md hover:bg-emerald-700 font-medium text-lg">
+        Enviar Solicitação
+      </button>
+    </form>
+    
+    <p class="text-center text-sm">
+      Já tem conta? <a href="{% url 'login' %}" class="text-emerald-600 hover:underline">Faça login</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,242 @@
+{% extends '_base.html' %}
+
+{% block title %}Analisar Notificação - Habitas{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-6xl">
+  <div class="mb-6">
+    <a href="{% url 'listar_notificacoes' %}" class="text-emerald-600 hover:text-emerald-700 font-medium">
+      ← Voltar às notificações
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Coluna Principal - Detalhes da Notificação -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Cabeçalho da Notificação -->
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <div class="flex items-start justify-between mb-4">
+          <div class="flex-1">
+            <div class="flex items-center gap-3 mb-3">
+              <h1 class="text-2xl font-bold text-gray-900">{{ notificacao.titulo }}</h1>
+              
+              <!-- Badge de Tipo -->
+              <span class="px-3 py-1 rounded-full text-xs font-semibold
+                           {% if notificacao.tipo == 'DENUNCIA' %}bg-red-100 text-red-700
+                           {% else %}bg-purple-100 text-purple-700{% endif %}">
+                {{ notificacao.get_tipo_display }}
+              </span>
+
+              <!-- Badge de Status -->
+              <span class="px-3 py-1 rounded-full text-xs font-semibold
+                           {% if notificacao.status == 'PENDENTE' %}bg-yellow-100 text-yellow-700
+                           {% elif notificacao.status == 'EM_ANALISE' %}bg-blue-100 text-blue-700
+                           {% elif notificacao.status == 'RESOLVIDA' %}bg-emerald-100 text-emerald-700
+                           {% else %}bg-gray-100 text-gray-700{% endif %}">
+                {{ notificacao.get_status_display }}
+              </span>
+            </div>
+
+            <!-- Metadados -->
+            <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+              <div>
+                <span class="text-gray-500">Reportado por:</span>
+                <span class="font-medium ml-1">{{ notificacao.autor.first_name }} {{ notificacao.autor.last_name }}</span>
+              </div>
+              <div>
+                <span class="text-gray-500">Data:</span>
+                <span class="font-medium ml-1">{{ notificacao.data_criacao|date:"d/m/Y H:i" }}</span>
+              </div>
+              {% if notificacao.tecnico_responsavel %}
+              <div>
+                <span class="text-gray-500">Técnico responsável:</span>
+                <span class="font-medium ml-1">{{ notificacao.tecnico_responsavel.first_name }} {{ notificacao.tecnico_responsavel.last_name }}</span>
+              </div>
+              <div>
+                <span class="text-gray-500">Data atribuição:</span>
+                <span class="font-medium ml-1">{{ notificacao.data_analise|date:"d/m/Y H:i" }}</span>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Descrição -->
+        <div class="mb-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-2">Descrição do Problema</h2>
+          <p class="text-gray-700 whitespace-pre-line">{{ notificacao.descricao }}</p>
+        </div>
+
+        <!-- Foto anexada -->
+        {% if notificacao.foto %}
+        <div class="mb-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-2">Foto Anexada</h2>
+          <img src="{{ notificacao.foto.url }}" 
+               alt="Foto da notificação" 
+               class="w-full max-w-2xl rounded-lg shadow-md">
+        </div>
+        {% endif %}
+
+        <!-- Parecer Técnico Existente -->
+        {% if notificacao.parecer_tecnico %}
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+          <h2 class="text-lg font-semibold text-blue-900 mb-2">Parecer Técnico</h2>
+          <p class="text-blue-800 whitespace-pre-line">{{ notificacao.parecer_tecnico }}</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Formulário de Análise Técnica (apenas para técnicos) -->
+      {% if user.nivel == 2 and notificacao.status != 'RESOLVIDA' and notificacao.status != 'ARQUIVADA' %}
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">
+          {% if notificacao.parecer_tecnico %}Atualizar{% else %}Adicionar{% endif %} Parecer Técnico
+        </h2>
+
+        <form method="POST" class="space-y-4">
+          {% csrf_token %}
+          
+          {% if form.non_field_errors %}
+            <div class="bg-red-50 border-l-4 border-red-500 p-4">
+              <p class="text-red-700">{{ form.non_field_errors.0 }}</p>
+            </div>
+          {% endif %}
+
+          <div>
+            <label for="{{ form.parecer_tecnico.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+              Parecer Técnico <span class="text-red-500">*</span>
+            </label>
+            <textarea name="{{ form.parecer_tecnico.name }}" 
+                      id="{{ form.parecer_tecnico.id_for_label }}"
+                      rows="8"
+                      class="w-full px-3 py-2 border {% if form.parecer_tecnico.errors %}border-red-500{% else %}border-gray-300{% endif %} rounded-md focus:outline-none focus:ring-emerald-500 focus:border-emerald-500"
+                      placeholder="Descreva sua análise técnica: gravidade, ações recomendadas, urgência, etc."
+                      required>{{ form.parecer_tecnico.value|default:notificacao.parecer_tecnico }}</textarea>
+            {% if form.parecer_tecnico.errors %}
+              <p class="mt-1 text-sm text-red-600">{{ form.parecer_tecnico.errors.0 }}</p>
+            {% endif %}
+            <p class="mt-1 text-xs text-gray-500">
+              Seja específico sobre: gravidade da situação, risco iminente, ações recomendadas, prazo sugerido.
+            </p>
+          </div>
+
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p class="text-sm text-yellow-800">
+              <strong>ℹ️ Lembrete:</strong> Ao enviar seu parecer, a notificação será marcada como "Em Análise" e você será atribuído como técnico responsável. O gestor receberá seu parecer para tomar as ações necessárias.
+            </p>
+          </div>
+
+          <div class="flex gap-4">
+            <button type="submit" 
+                    class="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-md hover:shadow-lg">
+              {% if notificacao.parecer_tecnico %}Atualizar Parecer{% else %}Enviar Parecer{% endif %}
+            </button>
+            <a href="{% url 'listar_notificacoes' %}" 
+               class="flex-1 text-center bg-gray-200 text-gray-800 py-3 px-6 rounded-lg hover:bg-gray-300 font-medium transition-colors">
+              Cancelar
+            </a>
+          </div>
+        </form>
+      </div>
+      {% endif %}
+
+      <!-- Área de Resolução (apenas para gestores com parecer técnico) -->
+      {% if user.nivel == 1 and notificacao.parecer_tecnico and notificacao.status == 'EM_ANALISE' %}
+      <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-emerald-500">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Ações de Resolução</h2>
+        <p class="text-gray-600 mb-4">A notificação foi analisada e está aguardando sua decisão.</p>
+        
+        <div class="flex gap-4">
+          <a href="{% url 'resolver_notificacao' notificacao.pk %}" 
+             class="flex-1 text-center bg-emerald-600 text-white py-3 px-6 rounded-lg hover:bg-emerald-700 font-medium transition-colors shadow-md hover:shadow-lg">
+            Marcar como Resolvida
+          </a>
+          <a href="{% url 'resolver_notificacao' notificacao.pk %}?acao=arquivar" 
+             class="flex-1 text-center bg-gray-600 text-white py-3 px-6 rounded-lg hover:bg-gray-700 font-medium transition-colors shadow-md hover:shadow-lg">
+            Arquivar
+          </a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Coluna Lateral - Informações da Árvore -->
+    <div class="space-y-6">
+      <!-- Informações da Árvore -->
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Árvore Relacionada</h2>
+        
+        <div class="space-y-3 text-sm">
+          <div>
+            <span class="text-gray-500 block">Placa:</span>
+            <span class="font-bold text-lg">#{{ notificacao.tree.N_placa|floatformat:0 }}</span>
+          </div>
+          
+          <div>
+            <span class="text-gray-500 block">Nome Popular:</span>
+            <span class="font-medium">{{ notificacao.tree.nome_popular }}</span>
+          </div>
+          
+          <div>
+            <span class="text-gray-500 block">Nome Científico:</span>
+            <span class="font-medium italic">{{ notificacao.tree.nome_cientifico }}</span>
+          </div>
+          
+          <div class="border-t border-gray-200 pt-3">
+            <span class="text-gray-500 block mb-2">Medidas:</span>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <span class="text-xs text-gray-500">DAP:</span>
+                <span class="font-medium ml-1">{{ notificacao.tree.dap }} cm</span>
+              </div>
+              <div>
+                <span class="text-xs text-gray-500">Altura:</span>
+                <span class="font-medium ml-1">{{ notificacao.tree.altura }} m</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="border-t border-gray-200 pt-3">
+            <span class="text-gray-500 block mb-1">Localização:</span>
+            <span class="font-medium block">{{ notificacao.tree.logradouro }}</span>
+            <span class="text-gray-600">{{ notificacao.tree.bairro }} - {{ notificacao.tree.cidade }}</span>
+          </div>
+
+          <a href="{% url 'index' %}?tree={{ notificacao.tree.pk }}" 
+             target="_blank"
+             class="block w-full text-center bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 font-medium transition-colors mt-4">
+            Ver no Mapa
+          </a>
+        </div>
+      </div>
+
+      <!-- Histórico de Mudanças -->
+      {% if historico %}
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Histórico</h2>
+        
+        <div class="space-y-3">
+          {% for item in historico %}
+          <div class="border-l-2 border-gray-300 pl-3 pb-3">
+            <div class="flex items-center gap-2 mb-1">
+              <div class="w-2 h-2 rounded-full
+                          {% if item.status == 'PENDENTE' %}bg-yellow-500
+                          {% elif item.status == 'EM_ANALISE' %}bg-blue-500
+                          {% elif item.status == 'RESOLVIDA' %}bg-emerald-500
+                          {% else %}bg-gray-500{% endif %}">
+              </div>
+              <span class="text-xs font-semibold text-gray-900">{{ item.get_status_display }}</span>
+            </div>
+            <p class="text-xs text-gray-600">{{ item.data_mudanca|date:"d/m/Y H:i" }}</p>
+            {% if item.observacao %}
+            <p class="text-xs text-gray-700 mt-1">{{ item.observacao }}</p>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

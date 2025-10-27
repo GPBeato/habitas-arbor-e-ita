@@ -1,0 +1,117 @@
+{% if laudos %}
+  <div class="space-y-4">
+    {% for laudo in laudos %}
+      <div class="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+        <div class="flex justify-between items-start mb-3">
+          <div class="flex-1">
+            <h2 class="text-xl font-semibold text-gray-900 mb-1">{{ laudo.titulo }}</h2>
+            <p class="text-sm text-gray-600">
+              Árvore: <strong>{{ laudo.tree.nome_popular }}</strong> 
+              <span class="italic">({{ laudo.tree.nome_cientifico }})</span> - 
+              Placa #{{ laudo.tree.N_placa|floatformat:0 }}
+            </p>
+          </div>
+          
+          <!-- Badge de Status -->
+          {% if laudo.status == 'PENDENTE' %}
+            <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+              ⏳ {{ laudo.get_status_display }}
+            </span>
+          {% elif laudo.status == 'APROVADO' %}
+            <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+              ✓ {{ laudo.get_status_display }}
+            </span>
+          {% elif laudo.status == 'REJEITADO' %}
+            <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+              ✗ {{ laudo.get_status_display }}
+            </span>
+          {% else %}
+            <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">
+              {{ laudo.get_status_display }}
+            </span>
+          {% endif %}
+        </div>
+
+        <!-- Descrição -->
+        <div class="mb-3 p-3 bg-gray-50 rounded">
+          <p class="text-sm text-gray-700 line-clamp-2">{{ laudo.descricao }}</p>
+        </div>
+
+        <!-- Informações -->
+        <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
+          <span><strong>Criado em:</strong> {{ laudo.data_criacao|date:"d/m/Y H:i" }}</span>
+          
+          {% if laudo.arquivo %}
+            <a href="{{ laudo.arquivo.url }}" target="_blank" 
+               class="text-emerald-600 hover:text-emerald-700 font-medium">
+              📄 Ver PDF
+            </a>
+          {% endif %}
+          
+          {% if laudo.validado_por %}
+            <span>
+              <strong>Validado por:</strong> {{ laudo.validado_por.username }}
+              <span class="text-xs text-gray-500">em {{ laudo.data_validacao|date:"d/m/Y H:i" }}</span>
+            </span>
+          {% endif %}
+        </div>
+
+        <!-- Observações de Validação (se rejeitado ou aprovado com observações) -->
+        {% if laudo.observacoes_validacao %}
+          <div class="mb-3 p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
+            <p class="text-xs font-semibold text-blue-800 mb-1">Observações do Gestor:</p>
+            <p class="text-sm text-blue-700">{{ laudo.observacoes_validacao }}</p>
+          </div>
+        {% endif %}
+
+        <!-- Ações -->
+        {% if show_actions %}
+          <div class="flex gap-3 pt-3 border-t border-gray-200">
+            <!-- Editar (apenas se pendente ou rascunho) -->
+            {% if laudo.status == 'PENDENTE' or laudo.status == 'RASCUNHO' %}
+              <a href="{% url 'editar_laudo' laudo.id %}" 
+                 class="flex-1 text-center bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 font-medium transition-colors">
+                ✏️ Editar
+              </a>
+              <a href="{% url 'excluir_laudo' laudo.id %}" 
+                 class="flex-1 text-center bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 font-medium transition-colors"
+                 onclick="return confirm('Tem certeza que deseja excluir este laudo?')">
+                🗑️ Excluir
+              </a>
+            {% elif laudo.status == 'REJEITADO' %}
+              <a href="{% url 'editar_laudo' laudo.id %}" 
+                 class="flex-1 text-center bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 font-medium transition-colors">
+                🔄 Reenviar Corrigido
+              </a>
+              <a href="{% url 'excluir_laudo' laudo.id %}" 
+                 class="flex-1 text-center bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 font-medium transition-colors"
+                 onclick="return confirm('Tem certeza que deseja excluir este laudo?')">
+                🗑️ Excluir
+              </a>
+            {% else %}
+              <div class="flex-1 text-center text-sm text-gray-500 py-2">
+                Laudo aprovado - não pode ser editado
+              </div>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="text-center py-12">
+    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">Nenhum laudo encontrado</h3>
+    <p class="mt-1 text-sm text-gray-500">Comece criando seu primeiro laudo técnico!</p>
+    <div class="mt-6">
+      <a href="{% url 'index' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Criar Laudo
+      </a>
+    </div>
+  </div>
+{% endif %}

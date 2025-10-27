@@ -1,0 +1,54 @@
+{% extends '_base.html' %}
+
+{% block title %}Técnicos Pendentes - Habitas{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 overflow-y-auto" style="max-height: calc(100vh - 120px);">
+  <h1 class="text-3xl font-bold mb-8">Técnicos Aguardando Aprovação</h1>
+  
+  {% if tecnicos %}
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuário</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Formação</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Registro</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Documento</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          {% for tecnico in tecnicos %}
+            <tr>
+              <td class="px-6 py-4 whitespace-nowrap">{{ tecnico.username }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">{{ tecnico.email }}</td>
+              <td class="px-6 py-4">{{ tecnico.formacao }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">{{ tecnico.registro_profissional }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                {% if tecnico.documento_comprobatorio %}
+                  <a href="{{ tecnico.documento_comprobatorio.url }}" target="_blank" class="text-blue-600 hover:underline">Ver documento</a>
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <a href="{% url 'aprovar_tecnico' tecnico.id %}" class="text-emerald-600 hover:underline">Analisar</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+      <p class="text-gray-600">Nenhum técnico pendente de aprovação.</p>
+    </div>
+  {% endif %}
+  
+  <div class="mt-6">
+    <a href="{% url 'dashboard_gestor' %}" class="text-emerald-600 hover:underline">← Voltar ao Dashboard</a>
+  </div>
+</div>
+{% endblock %}

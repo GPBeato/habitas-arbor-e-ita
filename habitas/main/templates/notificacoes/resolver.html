@@ -1,0 +1,198 @@
+{% extends '_base.html' %}
+
+{% block title %}Resolver Notificação - Habitas{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+  <div class="mb-6">
+    <a href="{% url 'analisar_notificacao' notificacao.pk %}" class="text-emerald-600 hover:text-emerald-700 font-medium">
+      ← Voltar aos detalhes
+    </a>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-lg p-6">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Resolver Notificação</h1>
+    <p class="text-gray-600 mb-6">Marque esta notificação como resolvida ou arquivada</p>
+
+    <!-- Resumo da Notificação -->
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6">
+      <div class="flex items-start justify-between mb-4">
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-2">
+            <h2 class="text-xl font-bold text-gray-900">{{ notificacao.titulo }}</h2>
+            
+            <span class="px-3 py-1 rounded-full text-xs font-semibold
+                         {% if notificacao.tipo == 'DENUNCIA' %}bg-red-100 text-red-700
+                         {% else %}bg-purple-100 text-purple-700{% endif %}">
+              {{ notificacao.get_tipo_display }}
+            </span>
+          </div>
+
+          <p class="text-gray-700 mb-4">{{ notificacao.descricao|truncatewords:50 }}</p>
+
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span class="text-gray-500">Árvore:</span>
+              <span class="font-medium ml-1">{{ notificacao.tree.nome_popular }} (Placa #{{ notificacao.tree.N_placa|floatformat:0 }})</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Autor:</span>
+              <span class="font-medium ml-1">{{ notificacao.autor.first_name }} {{ notificacao.autor.last_name }}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Data Criação:</span>
+              <span class="font-medium ml-1">{{ notificacao.data_criacao|date:"d/m/Y H:i" }}</span>
+            </div>
+            {% if notificacao.tecnico_responsavel %}
+            <div>
+              <span class="text-gray-500">Técnico:</span>
+              <span class="font-medium ml-1">{{ notificacao.tecnico_responsavel.first_name }} {{ notificacao.tecnico_responsavel.last_name }}</span>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if notificacao.foto %}
+        <img src="{{ notificacao.foto.url }}" alt="Foto" class="w-32 h-32 object-cover rounded-lg ml-4">
+        {% endif %}
+      </div>
+
+      <!-- Parecer Técnico -->
+      {% if notificacao.parecer_tecnico %}
+      <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+        <p class="text-sm font-semibold text-blue-900 mb-1">Parecer Técnico:</p>
+        <p class="text-sm text-blue-800">{{ notificacao.parecer_tecnico }}</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Formulário de Resolução -->
+    <form method="POST" class="space-y-6">
+      {% csrf_token %}
+      
+      {% if messages %}
+        {% for message in messages %}
+        <div class="bg-{% if message.tags == 'error' %}red{% else %}green{% endif %}-50 border-l-4 border-{% if message.tags == 'error' %}red{% else %}green{% endif %}-500 p-4">
+          <p class="text-{% if message.tags == 'error' %}red{% else %}green{% endif %}-700">{{ message }}</p>
+        </div>
+        {% endfor %}
+      {% endif %}
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-3">
+          Ação a Tomar <span class="text-red-500">*</span>
+        </label>
+        
+        <div class="space-y-3">
+          <label class="flex items-start p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-emerald-500 transition-colors">
+            <input type="radio" 
+                   name="acao" 
+                   value="resolver" 
+                   class="mt-1 mr-3"
+                   {% if request.GET.acao != 'arquivar' %}checked{% endif %}
+                   required>
+            <div>
+              <div class="font-semibold text-gray-900 mb-1">✅ Marcar como Resolvida</div>
+              <p class="text-sm text-gray-600">
+                A notificação foi tratada e o problema foi resolvido. O autor e técnico serão notificados.
+              </p>
+            </div>
+          </label>
+
+          <label class="flex items-start p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-gray-500 transition-colors">
+            <input type="radio" 
+                   name="acao" 
+                   value="arquivar" 
+                   class="mt-1 mr-3"
+                   {% if request.GET.acao == 'arquivar' %}checked{% endif %}
+                   required>
+            <div>
+              <div class="font-semibold text-gray-900 mb-1">📁 Arquivar</div>
+              <p class="text-sm text-gray-600">
+                A notificação não requer ação ou foi considerada improcedente. Será mantida para histórico.
+              </p>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <label for="observacao" class="block text-sm font-medium text-gray-700 mb-1">
+          Observações (Opcional)
+        </label>
+        <textarea name="observacao" 
+                  id="observacao"
+                  rows="4"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="Adicione informações sobre as ações tomadas, motivo do arquivamento, etc."></textarea>
+        <p class="mt-1 text-xs text-gray-500">
+          Essas observações serão registradas no histórico da notificação.
+        </p>
+      </div>
+
+      <!-- Resumo do que vai acontecer -->
+      <div id="resumo-resolver" class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+        <p class="text-sm text-emerald-800">
+          <strong>ℹ️ O que vai acontecer:</strong>
+        </p>
+        <ul class="text-sm text-emerald-800 mt-2 ml-4 list-disc space-y-1">
+          <li>A notificação será marcada como <strong>RESOLVIDA</strong></li>
+          <li>O status será atualizado no histórico</li>
+          <li>O autor da notificação poderá visualizar a resolução</li>
+          <li>A notificação não poderá mais ser editada</li>
+        </ul>
+      </div>
+
+      <div id="resumo-arquivar" class="bg-gray-50 border border-gray-200 rounded-lg p-4 hidden">
+        <p class="text-sm text-gray-800">
+          <strong>ℹ️ O que vai acontecer:</strong>
+        </p>
+        <ul class="text-sm text-gray-800 mt-2 ml-4 list-disc space-y-1">
+          <li>A notificação será marcada como <strong>ARQUIVADA</strong></li>
+          <li>O status será atualizado no histórico</li>
+          <li>A notificação ficará disponível apenas para consulta</li>
+          <li>Não haverá notificação ao autor</li>
+        </ul>
+      </div>
+
+      <div class="flex gap-4 pt-4">
+        <button type="submit" 
+                class="flex-1 bg-emerald-600 text-white py-3 px-6 rounded-lg hover:bg-emerald-700 font-medium transition-colors shadow-md hover:shadow-lg">
+          Confirmar Ação
+        </button>
+        <a href="{% url 'analisar_notificacao' notificacao.pk %}" 
+           class="flex-1 text-center bg-gray-200 text-gray-800 py-3 px-6 rounded-lg hover:bg-gray-300 font-medium transition-colors">
+          Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Atualiza o resumo baseado na ação selecionada
+  document.querySelectorAll('input[name="acao"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+      const resumoResolver = document.getElementById('resumo-resolver');
+      const resumoArquivar = document.getElementById('resumo-arquivar');
+      
+      if (this.value === 'resolver') {
+        resumoResolver.classList.remove('hidden');
+        resumoArquivar.classList.add('hidden');
+      } else {
+        resumoResolver.classList.add('hidden');
+        resumoArquivar.classList.remove('hidden');
+      }
+    });
+  });
+
+  // Trigger no carregamento para estado inicial correto
+  document.addEventListener('DOMContentLoaded', function() {
+    const selectedRadio = document.querySelector('input[name="acao"]:checked');
+    if (selectedRadio && selectedRadio.value === 'arquivar') {
+      document.getElementById('resumo-resolver').classList.add('hidden');
+      document.getElementById('resumo-arquivar').classList.remove('hidden');
+    }
+  });
+</script>
+{% endblock %}
