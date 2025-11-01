@@ -74,11 +74,10 @@ crossorigin=""></script>
     </div>
 
     <div class="info-container">
-      <div class="info-header">Fontes</div>
-      <div>CO<sub>2</sub> retido: Schumacher e Hall (1933)</div>
-      <div>Chuva interceptada: Gash (1979)</div>
-      <div>Energia conservada: Yekang Ko (2018)</div>
-      <div>Índice de biodiversidade: Estimativa própria</div>
+      <div class="info-header">Referências Científicas</div>
+      {% for service in ecosystem_services %}
+      <div>{{ service.nome }}: {{ service.referencia_cientifica|truncatewords:10 }}</div>
+      {% endfor %}
     </div>
   </div>
   <div class="z-0 col-span-3 pr-2 h-screen">
@@ -93,16 +92,38 @@ crossorigin=""></script>
 </div>
 
 <script>
+  // Serviços ecossistêmicos dinâmicos do BD
+  const ecosystemServicesConfig = {
+    {% for service in ecosystem_services %}
+    '{{ service.codigo }}': {
+      nome: '{{ service.nome }}',
+      unidade: '{{ service.unidade_medida }}',
+      valorMonetario: {{ service.valor_monetario_unitario }},
+      categoria: '{{ service.categoria }}',
+    },
+    {% endfor %}
+  };
+
   function renderStatistics(circles) {
     const species = new Set(circles.map(a => a.tree_species)).size;
     const total_n_posts = circles.map(a => a.n_posts).reduce((a,b)=>a+b, 0);
-    const stored_co2 = circles.map(a => a.stored_co2).reduce((a,b)=>a+b, 0);
-    const stored_co2_price = stored_co2 * 365;
-    const stormwater = circles.map(a => a.stormwater_intercepted).reduce((a,b)=>a+b, 0);
-    const stormwater_price = stormwater * 0.015;
-    const energy = circles.map(a => a.conserved_energy).reduce((a,b)=>a+b, 0);
-    const energy_price = energy * 0.82;
-    const biodiversity = circles.map(a => a.biodiversity).reduce((a,b)=>a+b, 0);
+    
+    // Calcula serviços dinamicamente
+    const servicesData = {};
+    for (const [codigo, config] of Object.entries(ecosystemServicesConfig)) {
+      const values = circles.map(a => {
+        // Busca valor no objeto tree que foi pre-calculado
+        return a.services && a.services[codigo] ? a.services[codigo].valor_fisico : 0;
+      });
+      const total = values.reduce((a,b)=>a+b, 0);
+      const valorMonetario = total * config.valorMonetario;
+      
+      servicesData[codigo] = {
+        valorFisico: total,
+        valorMonetario: valorMonetario,
+        config: config
+      };
+    }
 
     document.getElementById("estatisticas-gerais").innerHTML = `
       <div class="my-2">
@@ -122,35 +143,39 @@ crossorigin=""></script>
       </div>
     `;
 
-    document.getElementById("estatisticas-ecologicas").innerHTML = `
-      <div class="my-2">
-        <div class="font-bold text-xl">Toneladas de CO<sub>2</sub> retido</div>
-        <div style="display: grid; grid-auto-flow: column;">
-          <span class="text-lg">${stored_co2.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span style="color: rgb(5 150 105)">ton.</span></span>
-            <span class="text-lg"><span style="color: rgb(5 150 105)">Valor: </span>${stored_co2_price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} R$</span>
+    // Gera HTML dinamicamente para todos os serviços
+    let servicesHTML = '';
+    for (const [codigo, data] of Object.entries(servicesData)) {
+      const config = data.config;
+      const valorFisico = data.valorFisico;
+      const valorMonetario = data.valorMonetario;
+      
+      // Formatação baseada na unidade
+      let valorFormatado = '';
+      if (config.unidade.includes('ton') || config.unidade.includes('kg')) {
+        valorFormatado = valorFisico.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      } else if (config.unidade.includes('L')) {
+        valorFormatado = valorFisico.toLocaleString(undefined, {maximumFractionDigits: 0});
+      } else if (config.unidade.includes('kWh')) {
+        valorFormatado = valorFisico.toLocaleString(undefined, {maximumFractionDigits: 0});
+      } else if (config.unidade.includes('g')) {
+        valorFormatado = valorFisico.toLocaleString(undefined, {maximumFractionDigits: 2});
+      } else {
+        valorFormatado = valorFisico.toLocaleString(undefined, {maximumFractionDigits: 0});
+      }
+      
+      servicesHTML += `
+        <div class="my-2">
+          <div class="font-bold text-xl">${config.nome}</div>
+          <div style="display: grid; grid-auto-flow: column;">
+            <span class="text-lg">${valorFormatado} <span style="color: rgb(5 150 105)">${config.unidade}</span></span>
+            ${config.valorMonetario > 0 ? `<span class="text-lg"><span style="color: rgb(5 150 105)">Valor: </span>${valorMonetario.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} R$</span>` : ''}
+          </div>
         </div>
-      </div>
-      <div class="my-2">
-        <div class="font-bold text-xl">Água de chuva interceptada por ano</div>
-        <div style="display: grid; grid-auto-flow: column;">
-          <span class="text-lg">${stormwater.toLocaleString(undefined, {maximumFractionDigits: 0})} <span style="color: rgb(5 150 105)">L</span></span>
-            <span class="text-lg"><span style="color: rgb(5 150 105)">Valor: </span>${stormwater_price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} R$</span>
-        </div>
-      </div>
-      <div class="my-2">
-        <div class="font-bold text-xl">Energia conservada por ano</div>
-        <div style="display: grid; grid-auto-flow: column;">
-          <span class="text-lg">${energy.toLocaleString(undefined, {maximumFractionDigits: 0})} <span style="color: rgb(5 150 105)">kWh</span></span>
-            <span class="text-lg"><span style="color: rgb(5 150 105)">Valor: </span>${energy_price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} R$</span>
-        </div>
-      </div>
-      <div class="my-2">
-        <div class="font-bold text-xl">Índice de biodiversidade</div>
-        <div style="display: grid; grid-auto-flow: column;">
-          <span class="text-lg">${biodiversity.toLocaleString(undefined, {maximumFractionDigits: 0})} <span style="color: rgb(5 150 105)">un.</span></span>
-        </div>
-      </div>
-    `;
+      `;
+    }
+    
+    document.getElementById("estatisticas-ecologicas").innerHTML = servicesHTML;
   }
 
   function create_google_maps_url(lat, long){
@@ -303,6 +328,47 @@ crossorigin=""></script>
 
     document.getElementById("estatisticas").style.display = "block";
     
+    // Gera HTML dinamicamente com todos os serviços ecossistêmicos
+    let servicosHTML = '';
+    if (tree.services) {
+      for (const [codigo, servico] of Object.entries(tree.services)) {
+        const nome = servico.nome || 'Serviço';
+        const valorFisico = servico.valor_fisico || 0;
+        const valorMonetario = servico.valor_monetario || 0;
+        const unidade = servico.unidade || 'unidade';
+        
+        // Formatação baseada na unidade
+        let valorFormatado = '';
+        if (unidade.includes('ton')) {
+          valorFormatado = valorFisico.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        } else if (unidade.includes('kg')) {
+          valorFormatado = Math.round(valorFisico * 1000).toLocaleString(undefined, {maximumFractionDigits: 0});
+        } else if (unidade.includes('L')) {
+          valorFormatado = Math.round(valorFisico).toLocaleString(undefined, {maximumFractionDigits: 0});
+        } else if (unidade.includes('kWh')) {
+          valorFormatado = Math.round(valorFisico).toLocaleString(undefined, {maximumFractionDigits: 0});
+        } else if (unidade.includes('g')) {
+          valorFormatado = valorFisico.toLocaleString(undefined, {maximumFractionDigits: 2});
+        } else {
+          valorFormatado = Math.round(valorFisico).toLocaleString(undefined, {maximumFractionDigits: 0});
+        }
+        
+        servicosHTML += `<p>${nome}: ${valorFormatado} ${unidade}`;
+        if (valorMonetario > 0) {
+          servicosHTML += ` (Valor: R$ ${valorMonetario.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})})`;
+        }
+        servicosHTML += `</p>`;
+      }
+    } else {
+      // Fallback para compatibilidade com código antigo
+      servicosHTML = `
+        <p>CO<sub>2</sub> retido: ${ Math.round(1000 * tree.co2) } kg</p>
+        <p>Água de chuva interceptada: ${ Math.round(tree.stormwater) } L</p>
+        <p>Energia conservada: ${ Math.round(tree.conserved_energy) } kWh</p>
+        <p>Índice de biodiversidade: ${ Math.round(tree.biodiversity) } un</p>
+      `;
+    }
+    
     // ATUALIZAÇÃO 1: Preenche o <p> APENAS com o texto
     document.getElementById("dados").innerHTML = `
       <p>Id. da árvore: ${tree.numero}</p>
@@ -310,14 +376,12 @@ crossorigin=""></script>
       <p>Diâmetro: ${tree.dap} cm</p>
       <p>Altura: ${tree.altura} m</p>
       <p>Google maps: <a href="${google_maps_url}" class="underline text-blue-500">link</a></p>
-      <p>CO<sub>2</sub> retido: ${ Math.round(1000 * tree.co2) } kg</p>
-      <p>Água de chuva interceptada: ${ Math.round(tree.stormwater) } L</p>
-      <p>Energia conservada: ${ Math.round(tree.conserved_energy) } kWh</p>
-      <p>Índice de biodiversidade: ${ Math.round(tree.biodiversity) } un</p>
+      <p style="font-weight: bold; margin-top: 1rem;">Serviços Ecossistêmicos:</p>
+      ${servicosHTML}
       <p>Plantado por: ${tree.plantado_por } </p>
       ${laudos.length > 0 ? `<p>Laudos: ${laudos.join(', ')} </p>` : ""}
       ${img_links.length > 0 ? `<p style="font-weight: bold;">Imagens</p> ${img_links.join('')}` : ""}
-    `; // Note que ${acoesBotoes} foi removido daqui
+    `;
 
     // ATUALIZAÇÃO 2: Preenche o novo <div> APENAS com os botões
     document.getElementById("acoes-container").innerHTML = acoesBotoes;
@@ -328,6 +392,9 @@ crossorigin=""></script>
   tree_map = new Map();
 
   {% for tree in trees %}
+    // Usa serviços dinâmicos do BD - calculado no backend
+    const tree_services_{{ tree.id }} = {{ tree.get_all_ecosystem_services_json|safe }};
+    
     tree_obj = {
       id: {{ tree.id }},
       nome_popular: "{{ tree.nome_popular }}".trim(),
@@ -339,10 +406,12 @@ crossorigin=""></script>
       longitude: "{{ tree.longitude }}",
       numero: {{ tree.N_placa }},
       n_comentarios: {{ tree.n_posts }},
-      co2: {{ tree.stored_co2 }},
-      stormwater: {{ tree.stormwater_intercepted }},
-      conserved_energy: {{ tree.conserved_energy }},
-      biodiversity: {{ tree.biodiversity }},
+      // Serviços dinâmicos do BD (mantém compatibilidade com código antigo)
+      services: tree_services_{{ tree.id }},
+      co2: {{ tree.stored_co2 }},  // Compatibilidade
+      stormwater: {{ tree.stormwater_intercepted }},  // Compatibilidade
+      conserved_energy: {{ tree.conserved_energy }},  // Compatibilidade
+      biodiversity: {{ tree.biodiversity }},  // Compatibilidade
       color: {{ tree.n_posts }} > 0 ? "yellow" : "green",
       plantado_por: "{{ tree.plantado_por }}",
       imagens: "{{ tree.imagem }}".split(',').map(path => path.trim()).filter(val => val !== ""),
@@ -372,10 +441,13 @@ crossorigin=""></script>
     circle.tree_id = tree_id;
     circle.tree_species = tree.nome_cientifico;
     circle.n_posts = tree.n_comentarios;
-    circle.stored_co2 = tree.co2;
-    circle.stormwater_intercepted = tree.stormwater;
-    circle.conserved_energy = tree.conserved_energy;
-    circle.biodiversity = tree.biodiversity;
+    // Serviços dinâmicos do BD
+    circle.services = tree.services;
+    // Compatibilidade com código antigo
+    circle.stored_co2 = tree.services && tree.services['co2_armazenado'] ? tree.services['co2_armazenado'].valor_fisico : tree.co2;
+    circle.stormwater_intercepted = tree.services && tree.services['chuva_interceptada'] ? tree.services['chuva_interceptada'].valor_fisico : tree.stormwater;
+    circle.conserved_energy = tree.services && tree.services['energia_conservada'] ? tree.services['energia_conservada'].valor_fisico : tree.conserved_energy;
+    circle.biodiversity = tree.services && tree.services['biodiversidade'] ? tree.services['biodiversidade'].valor_fisico : tree.biodiversity;
 
     circle.on("click", function(){
       if (lastClickedCircle){

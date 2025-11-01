@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count
 from django.utils import timezone
-from .models import Tree, Post, CustomUser, Laudo, Notificacao, HistoricoNotificacao
+from .models import Tree, Post, CustomUser, Laudo, Notificacao, HistoricoNotificacao, EcosystemServiceConfig
 from .forms import (
     CidadaoRegistrationForm, TecnicoRegistrationForm, 
     LaudoForm, NotificacaoForm, ParecerTecnicoForm, AprovacaoTecnicoForm
@@ -14,8 +14,11 @@ from .decorators import gestor_required, tecnico_required, gestor_ou_tecnico_req
 
 def index(request):
     trees = Tree.objects.all().select_related('species').annotate(n_posts=Count("posts"))
+    # Busca serviços ecossistêmicos ativos para usar no frontend
+    ecosystem_services = EcosystemServiceConfig.objects.filter(ativo=True).order_by('ordem_exibicao')
     context = {
         "trees": trees,
+        "ecosystem_services": ecosystem_services,
     }
     return render(request, "index.html", context)
 
