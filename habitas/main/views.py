@@ -436,7 +436,7 @@ def listar_notificacoes(request):
     return render(request, "notificacoes/listar.html", {"notificacoes": notificacoes})
 
 
-@tecnico_required
+@gestor_ou_tecnico_required
 def analisar_notificacao(request, notificacao_id):
     """Técnico analisa notificação"""
     notificacao = get_object_or_404(Notificacao, id=notificacao_id)
@@ -448,7 +448,9 @@ def analisar_notificacao(request, notificacao_id):
         notificacao.save()
 
         HistoricoNotificacao.objects.create(
-            notificacao=notificacao, usuario=request.user, acao="Análise iniciada"
+            notificacao=notificacao,
+            usuario=request.user,
+            acao="Análise iniciada",
         )
 
     if request.method == "POST":
