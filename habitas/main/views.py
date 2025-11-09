@@ -96,6 +96,11 @@ def register_tecnico(request):
                 "Solicitação enviada! Aguarde aprovação do gestor para acessar funcionalidades técnicas.",
             )
             return redirect("login")
+        else:
+            # Mostra erros de validação
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
     else:
         form = TecnicoRegistrationForm()
 
@@ -203,6 +208,11 @@ def aprovar_tecnico(request, user_id):
                 request, f"Técnico {tecnico.username} foi {status_texto.lower()}."
             )
             return redirect("listar_tecnicos_pendentes")
+        else:
+            # Mostra erros de validação
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
     else:
         form = AprovacaoTecnicoForm(instance=tecnico)
 
@@ -242,6 +252,11 @@ def criar_laudo(request, tree_id):
                 return redirect("dashboard_gestor")
             else:
                 return redirect("dashboard_tecnico")
+        else:
+            # Mostra erros de validação
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
     else:
         form = LaudoForm()
 
@@ -337,6 +352,11 @@ def editar_laudo(request, laudo_id):
 
             messages.success(request, "Laudo atualizado com sucesso!")
             return redirect("meus_laudos")
+        else:
+            # Mostra erros de validação
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
     else:
         form = LaudoForm(instance=laudo)
 
@@ -400,6 +420,11 @@ def criar_notificacao(request, tree_id):
 
             messages.success(request, "Notificação enviada com sucesso!")
             return redirect("index")
+        else:
+            # Mostra erros de validação
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
     else:
         form = NotificacaoForm()
 
@@ -468,6 +493,11 @@ def analisar_notificacao(request, notificacao_id):
 
             messages.success(request, "Parecer técnico enviado com sucesso!")
             return redirect("listar_notificacoes")
+        else:
+            # Mostra erros de validação
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
     else:
         form = ParecerTecnicoForm(instance=notificacao)
 
